@@ -5,6 +5,15 @@ import { coverUrl } from '../lib/covers'
 
 const PlayerCtx = createContext(null)
 
+// captureStream existe en Chrome/Edge/Android. En Safari/iOS no: allí no hay visualizador,
+// pero así nunca desviamos el audio por Web Audio (que se corta en segundo plano).
+export const vizSupported =
+  typeof HTMLMediaElement !== 'undefined' &&
+  typeof HTMLMediaElement.prototype.captureStream === 'function' &&
+  // en Firefox capturar el audio silencia el elemento
+  !('mozCaptureStream' in HTMLMediaElement.prototype) &&
+  !!(window.AudioContext || window.webkitAudioContext)
+
 export function PlayerProvider({ tracks, children }) {
   const [audio] = useState(() => new Audio())
   const [queue, setQueue] = useState([])
@@ -27,40 +36,75 @@ export function PlayerProvider({ tracks, children }) {
   state.current = { queue, index, shuffle, repeat, visualizer }
   const urlRef = useRef(null)
   const loadSeq = useRef(0)
-  const graph = useRef(null)
+  const viz = useRef(null)
+  const upcoming = useRef(null) // siguiente canción ya preparada: { queue, from, index, id, url }
+  const pendingPlay = useRef(false)
 
-  // Web Audio solo se crea si el visualizador está activo y tras un gesto del usuario
-  const ensureGraph = useCallback(() => {
-    if (!state.current.visualizer) return
-    if (!graph.current) {
-      const AC = window.AudioContext || window.webkitAudioContext
-      if (!AC) return
-      const ctx = new AC()
-      const src = ctx.createMediaElementSource(audio)
-      const an = ctx.createAnalyser()
-      an.fftSize = 256
-      an.smoothingTimeConstant = 0.82
-      src.connect(an)
-      an.connect(ctx.destination)
-      graph.current = { ctx, an }
-      setAnalyser(an)
+  // Si el navegador bloquea play() (p. ej. en segundo plano), se reintenta al volver
+  const tryPlay = useCallback(() => {
+    audio.play().then(
+      () => (pendingPlay.current = false),
+      (e) => {
+        if (e?.name === 'NotAllowedError') pendingPlay.current = true
+      },
+    )
+  }, [audio])
+
+  // Visualizador: escucha una COPIA del audio (captureStream) sin desviar la salida.
+  // Así, aunque el navegador suspenda Web Audio en segundo plano, la música sigue sonando
+  // por el elemento <audio>. Si el navegador no tiene captureStream, no hay visualizador.
+  const connectViz = useCallback(() => {
+    if (!state.current.visualizer || !vizSupported) return
+    try {
+      if (!viz.current) {
+        const AC = window.AudioContext || window.webkitAudioContext
+        const ctx = new AC()
+        const an = ctx.createAnalyser()
+        an.fftSize = 256
+        an.smoothingTimeConstant = 0.82
+        const stream = audio.captureStream()
+        viz.current = { ctx, an, stream, track: null, src: null }
+        stream.addEventListener('addtrack', () => connectViz())
+        setAnalyser(an)
+      }
+      const v = viz.current
+      if (v.ctx.state === 'suspended') v.ctx.resume().catch(() => {})
+      const track = v.stream.getAudioTracks().find((t) => t.readyState === 'live')
+      if (track && track !== v.track) {
+        v.src?.disconnect()
+        v.src = v.ctx.createMediaStreamSource(new MediaStream([track]))
+        v.src.connect(v.an) // el analizador NO se conecta a los altavoces
+        v.track = track
+      }
+    } catch {
+      // sin visualizador; la reproducción no se ve afectada
     }
-    if (graph.current.ctx.state === 'suspended') graph.current.ctx.resume()
   }, [audio])
 
   const load = useCallback(
-    async (id, autoplay = true) => {
+    (id, autoplay = true) => {
       const seq = ++loadSeq.current
-      if (autoplay) ensureGraph()
-      const blob = await getFile(id)
-      if (seq !== loadSeq.current || !blob) return
-      if (urlRef.current) URL.revokeObjectURL(urlRef.current)
-      urlRef.current = URL.createObjectURL(blob)
-      audio.src = urlRef.current
-      savePref('last', id)
-      if (autoplay) audio.play().catch(() => {})
+      const start = (url) => {
+        if (seq !== loadSeq.current) return URL.revokeObjectURL(url)
+        if (urlRef.current && urlRef.current !== url) URL.revokeObjectURL(urlRef.current)
+        urlRef.current = url
+        audio.src = url
+        savePref('last', id)
+        if (autoplay) tryPlay()
+      }
+      // Si la canción ya estaba precargada, se cambia al instante (sin esperar a IndexedDB):
+      // clave para que el paso de canción funcione con la app en segundo plano.
+      const up = upcoming.current
+      if (up?.id === id) {
+        upcoming.current = null
+        start(up.url)
+        return
+      }
+      getFile(id).then((blob) => {
+        if (blob && seq === loadSeq.current) start(URL.createObjectURL(blob))
+      })
     },
-    [audio, ensureGraph],
+    [audio, tryPlay],
   )
 
   const playQueue = useCallback(
@@ -79,15 +123,18 @@ export function PlayerProvider({ tracks, children }) {
       if (!queue.length) return
       if (auto && repeat === 'one') {
         audio.currentTime = 0
-        audio.play().catch(() => {})
+        tryPlay()
         return
       }
+      const up = upcoming.current
       let ni = index + 1
       if (shuffle && queue.length > 1) {
-        do ni = Math.floor(Math.random() * queue.length)
-        while (ni === index)
-      }
-      if (ni >= queue.length) {
+        // usa la canción aleatoria que ya se precargó
+        if (up && up.queue === queue && up.from === index) ni = up.index
+        else
+          do ni = Math.floor(Math.random() * queue.length)
+          while (ni === index)
+      } else if (ni >= queue.length) {
         if (auto && repeat === 'off') {
           audio.pause()
           audio.currentTime = 0
@@ -98,7 +145,7 @@ export function PlayerProvider({ tracks, children }) {
       setIndex(ni)
       load(queue[ni])
     },
-    [audio, load],
+    [audio, load, tryPlay],
   )
 
   // force = cambiar de canción aunque ya lleve más de 3 s sonando (gesto de deslizar)
@@ -123,11 +170,9 @@ export function PlayerProvider({ tracks, children }) {
       }
       return
     }
-    if (audio.paused) {
-      ensureGraph()
-      audio.play().catch(() => {})
-    } else audio.pause()
-  }, [audio, load, ensureGraph])
+    if (audio.paused) tryPlay()
+    else audio.pause()
+  }, [audio, load, tryPlay])
 
   const seek = useCallback(
     (t) => {
@@ -161,18 +206,78 @@ export function PlayerProvider({ tracks, children }) {
 
   // Eventos del elemento <audio>
   useEffect(() => {
+    // posición para la notificación / pantalla de bloqueo
+    const syncPosition = () => {
+      try {
+        if (audio.duration > 0)
+          navigator.mediaSession?.setPositionState?.({
+            duration: audio.duration,
+            position: Math.min(audio.currentTime, audio.duration),
+            playbackRate: audio.playbackRate || 1,
+          })
+      } catch {
+        // no soportado
+      }
+    }
     const on = {
       play: () => setPlaying(true),
-      pause: () => setPlaying(false),
+      playing: () => {
+        connectViz()
+        syncPosition()
+      },
+      pause: () => {
+        setPlaying(false)
+        syncPosition()
+      },
       timeupdate: () => setTime(audio.currentTime),
-      durationchange: () => setDuration(audio.duration || 0),
+      durationchange: () => {
+        setDuration(audio.duration || 0)
+        syncPosition()
+      },
+      seeked: syncPosition,
       ended: () => next(true),
     }
     for (const [e, fn] of Object.entries(on)) audio.addEventListener(e, fn)
     return () => {
       for (const [e, fn] of Object.entries(on)) audio.removeEventListener(e, fn)
     }
-  }, [audio, next])
+  }, [audio, next, connectViz])
+
+  // Reintenta reproducir al volver a la app si el navegador lo bloqueó en segundo plano
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      if (pendingPlay.current) tryPlay()
+      viz.current?.ctx.state === 'suspended' && viz.current.ctx.resume().catch(() => {})
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [tryPlay])
+
+  // Precarga la siguiente canción para cambiar sin esperas (también en segundo plano)
+  useEffect(() => {
+    if (index < 0 || queue.length < 2) return
+    let ni = (index + 1) % queue.length
+    if (shuffle)
+      do ni = Math.floor(Math.random() * queue.length)
+      while (ni === index)
+    const id = queue[ni]
+    let cancelled = false
+    getFile(id).then((blob) => {
+      if (cancelled || !blob) return
+      const old = upcoming.current
+      if (old && old.url !== urlRef.current) URL.revokeObjectURL(old.url)
+      upcoming.current = { queue, from: index, index: ni, id, url: URL.createObjectURL(blob) }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [queue, index, shuffle])
+
+  // Activar el visualizador mientras suena
+  useEffect(() => {
+    if (visualizer && !audio.paused) connectViz()
+  }, [visualizer, audio, connectViz])
 
   useEffect(() => {
     audio.volume = volume

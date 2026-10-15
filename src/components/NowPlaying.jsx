@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { usePlayer } from '../hooks/usePlayer'
+import { usePlayer, vizSupported } from '../hooks/usePlayer'
 import { coverUrl } from '../lib/covers'
 import { Cover } from './Cover'
 import { Controls, Progress, Volume } from './Controls'
@@ -81,7 +81,7 @@ export function NowPlaying({ onClose, onFavorite, onAddToPlaylist }) {
           />
         </div>
 
-        {visualizer && <Visualizer className="h-12" bars={40} />}
+        {visualizer && vizSupported && <Visualizer className="h-12" bars={40} />}
 
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">

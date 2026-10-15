@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { usePlayer } from '../hooks/usePlayer'
+import { usePlayer, vizSupported } from '../hooks/usePlayer'
 import { useTheme } from '../hooks/useTheme'
 import { formatBytes } from '../lib/format'
 import { ACCENTS, BASE_NAMES, isDark, PALETTES, PRESETS } from '../lib/theme'
@@ -173,15 +173,24 @@ export function Settings({ onClose, trackCount, installed, onInstall }) {
           </Section>
 
           <Section title="Reproducción">
-            <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl bg-bg px-4 py-3">
+            <label
+              className={`flex items-center justify-between gap-4 rounded-xl bg-bg px-4 py-3 ${
+                vizSupported ? 'cursor-pointer' : 'opacity-60'
+              }`}
+            >
               <span>
                 <span className="block text-sm font-medium">Visualizador de audio</span>
-                <span className="block text-xs text-muted">Barras animadas en la vista de reproducción</span>
+                <span className="block text-xs text-muted">
+                  {vizSupported
+                    ? 'Barras animadas en la vista de reproducción'
+                    : 'No disponible en este navegador'}
+                </span>
               </span>
               <input
                 type="checkbox"
                 className="peer sr-only"
-                checked={visualizer}
+                disabled={!vizSupported}
+                checked={visualizer && vizSupported}
                 onChange={(e) => setVisualizer(e.target.checked)}
               />
               <span className="relative h-6 w-10 shrink-0 rounded-full bg-surface-2 transition-colors peer-checked:bg-accent peer-focus-visible:outline-2 peer-focus-visible:outline-accent after:absolute after:top-1 after:left-1 after:size-4 after:rounded-full after:bg-fg after:transition-transform peer-checked:after:translate-x-4 peer-checked:after:bg-accent-fg" />
