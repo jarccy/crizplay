@@ -19,6 +19,14 @@
         var d = m === 'dark' || (m === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
         document.documentElement.style.background = d ? '#0a0a0a' : '#fafafa'
       } catch (e) {}
+
+      // Chrome lanza este evento una sola vez y a menudo antes de que cargue React:
+      // lo guardamos aquí para que el botón "Instalar" pueda usarlo después.
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault()
+        window.__installPrompt = e
+        window.dispatchEvent(new Event('installprompt-ready'))
+      })
     </script>
   </head>
   <body>

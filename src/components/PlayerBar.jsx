@@ -1,11 +1,13 @@
 import { usePlayer } from '../hooks/usePlayer'
+import { useSwipe } from '../hooks/useSwipe'
 import { Cover } from './Cover'
 import { Controls, Progress, Volume } from './Controls'
 import { HeartIcon } from './Icons'
 
 export function PlayerBar({ onExpand, onFavorite }) {
-  const { current, time, duration } = usePlayer()
+  const { current, time, duration, queue, next, prevTrack } = usePlayer()
   const pct = duration ? (time / duration) * 100 : 0
+  const swipe = useSwipe({ onNext: next, onPrev: prevTrack, enabled: !!current && queue.length > 1, tilt: false, threshold: 50 })
 
   return (
     <footer className="relative border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
@@ -17,7 +19,9 @@ export function PlayerBar({ onExpand, onFavorite }) {
       <div className="grid h-[72px] grid-cols-[1fr_auto] items-center gap-4 px-3 md:h-20 md:grid-cols-[1fr_minmax(0,40rem)_1fr] md:px-4">
         <div className="flex min-w-0 items-center gap-3">
           <button
-            className="flex min-w-0 items-center gap-3 text-left disabled:cursor-default"
+            {...swipe.handlers}
+            style={swipe.style}
+            className="flex min-w-0 items-center gap-3 text-left select-none disabled:cursor-default"
             onClick={onExpand}
             disabled={!current}
             aria-label="Abrir reproductor"

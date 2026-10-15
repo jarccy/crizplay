@@ -3,34 +3,50 @@ import { useEffect, useState } from 'react'
 const standalone = () =>
   matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
 
+const ua = navigator.userAgent
+export const platform = {
+  ios: /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1),
+  android: /android/i.test(ua),
+  firefox: /firefox|fxios/i.test(ua),
+  safari: /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(ua),
+  // la instalación (y el service worker) exige HTTPS o localhost
+  secure: window.isSecureContext,
+}
+
 export function useInstall() {
-  const [prompt, setPrompt] = useState(null)
+  // el evento lo captura un script en index.html antes de que cargue React
+  const [prompt, setPrompt] = useState(() => window.__installPrompt || null)
   const [installed, setInstalled] = useState(standalone)
 
   useEffect(() => {
-    const onPrompt = (e) => {
-      e.preventDefault()
-      setPrompt(e)
-    }
+    const onReady = () => setPrompt(window.__installPrompt || null)
     const onInstalled = () => {
+      window.__installPrompt = null
       setInstalled(true)
       setPrompt(null)
     }
-    window.addEventListener('beforeinstallprompt', onPrompt)
+    const mq = matchMedia('(display-mode: standalone)')
+    const onMode = () => setInstalled(standalone())
+    window.addEventListener('installprompt-ready', onReady)
     window.addEventListener('appinstalled', onInstalled)
+    mq.addEventListener('change', onMode)
     return () => {
-      window.removeEventListener('beforeinstallprompt', onPrompt)
+      window.removeEventListener('installprompt-ready', onReady)
       window.removeEventListener('appinstalled', onInstalled)
+      mq.removeEventListener('change', onMode)
     }
   }, [])
 
+  // Devuelve true si se mostró el diálogo nativo; false si hay que enseñar instrucciones
   const install = async () => {
-    if (!prompt) return
+    if (!prompt) return false
     prompt.prompt()
-    await prompt.userChoice
+    const { outcome } = await prompt.userChoice
+    window.__installPrompt = null
     setPrompt(null)
+    if (outcome === 'accepted') setInstalled(true)
+    return true
   }
 
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
-  return { canInstall: !!prompt && !installed, install, installed, isIOS }
+  return { canPrompt: !!prompt, installed, install }
 }

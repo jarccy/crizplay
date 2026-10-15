@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { addTrack, deleteTrack, getAllTracks, updateTrack } from '../lib/db'
+import {
+  addTrack,
+  deletePlaylist,
+  deleteTrack,
+  getAllPlaylists,
+  getAllTracks,
+  putPlaylist,
+  uid,
+  updateTrack,
+} from '../lib/db'
 import { getDuration, parseFileName, readTags } from '../lib/id3'
 
 const AUDIO_EXT = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|webm)$/i
@@ -7,14 +16,20 @@ export const isAudio = (f) => f.type.startsWith('audio/') || AUDIO_EXT.test(f.na
 
 export function useLibrary(notify) {
   const [tracks, setTracks] = useState([])
+  const [playlists, setPlaylists] = useState([])
   const [loaded, setLoaded] = useState(false)
   const [importing, setImporting] = useState(null) // { done, total }
   const tracksRef = useRef(tracks)
   tracksRef.current = tracks
+  const playlistsRef = useRef(playlists)
+  playlistsRef.current = playlists
 
   useEffect(() => {
-    getAllTracks()
-      .then((all) => setTracks(all.sort((a, b) => a.addedAt - b.addedAt)))
+    Promise.all([getAllTracks(), getAllPlaylists()])
+      .then(([ts, pls]) => {
+        setTracks(ts.sort((a, b) => a.addedAt - b.addedAt))
+        setPlaylists(pls.sort((a, b) => a.createdAt - b.createdAt))
+      })
       .catch(() => notify('No se pudo abrir la biblioteca local', 'error'))
       .finally(() => setLoaded(true))
     // pide al navegador que no borre los datos cuando falte espacio
@@ -40,7 +55,7 @@ export function useLibrary(notify) {
             const [tags, duration] = await Promise.all([readTags(file), getDuration(file)])
             const fromName = parseFileName(file.name)
             const meta = {
-              id: crypto.randomUUID(),
+              id: uid(),
               title: tags.title || fromName.title,
               artist: tags.artist || fromName.artist || 'Artista desconocido',
               album: tags.album || '',
@@ -71,10 +86,26 @@ export function useLibrary(notify) {
     [notify],
   )
 
-  const removeTrack = useCallback(async (id) => {
-    await deleteTrack(id)
-    setTracks((ts) => ts.filter((t) => t.id !== id))
+  const savePlaylist = useCallback(async (pl) => {
+    const exists = playlistsRef.current.some((p) => p.id === pl.id)
+    playlistsRef.current = exists
+      ? playlistsRef.current.map((p) => (p.id === pl.id ? pl : p))
+      : [...playlistsRef.current, pl]
+    setPlaylists(playlistsRef.current)
+    await putPlaylist(pl)
+    return pl
   }, [])
+
+  const removeTrack = useCallback(
+    async (id) => {
+      await deleteTrack(id)
+      setTracks((ts) => ts.filter((t) => t.id !== id))
+      for (const pl of playlistsRef.current) {
+        if (pl.trackIds.includes(id)) await savePlaylist({ ...pl, trackIds: pl.trackIds.filter((x) => x !== id) })
+      }
+    },
+    [savePlaylist],
+  )
 
   const toggleFavorite = useCallback(async (id) => {
     const t = tracksRef.current.find((x) => x.id === id)
@@ -84,5 +115,56 @@ export function useLibrary(notify) {
     await updateTrack(next)
   }, [])
 
-  return { tracks, loaded, importing, importFiles, removeTrack, toggleFavorite }
+  const createPlaylist = useCallback(
+    (name, trackIds = []) => savePlaylist({ id: uid(), name, trackIds, createdAt: Date.now() }),
+    [savePlaylist],
+  )
+
+  const renamePlaylist = useCallback(
+    (id, name) => {
+      const pl = playlistsRef.current.find((p) => p.id === id)
+      if (pl) savePlaylist({ ...pl, name })
+    },
+    [savePlaylist],
+  )
+
+  const setPlaylistTracks = useCallback(
+    (id, trackIds) => {
+      const pl = playlistsRef.current.find((p) => p.id === id)
+      if (pl) savePlaylist({ ...pl, trackIds })
+    },
+    [savePlaylist],
+  )
+
+  const togglePlaylistTrack = useCallback(
+    (id, trackId) => {
+      const pl = playlistsRef.current.find((p) => p.id === id)
+      if (!pl) return
+      const has = pl.trackIds.includes(trackId)
+      savePlaylist({ ...pl, trackIds: has ? pl.trackIds.filter((x) => x !== trackId) : [...pl.trackIds, trackId] })
+      notify(has ? `Quitada de «${pl.name}»` : `Añadida a «${pl.name}»`)
+    },
+    [savePlaylist, notify],
+  )
+
+  const removePlaylist = useCallback(async (id) => {
+    playlistsRef.current = playlistsRef.current.filter((p) => p.id !== id)
+    setPlaylists(playlistsRef.current)
+    await deletePlaylist(id)
+  }, [])
+
+  return {
+    tracks,
+    playlists,
+    loaded,
+    importing,
+    importFiles,
+    removeTrack,
+    toggleFavorite,
+    createPlaylist,
+    renamePlaylist,
+    setPlaylistTracks,
+    togglePlaylistTrack,
+    removePlaylist,
+  }
 }

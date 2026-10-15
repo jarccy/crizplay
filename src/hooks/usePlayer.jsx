@@ -101,10 +101,11 @@ export function PlayerProvider({ tracks, children }) {
     [audio, load],
   )
 
-  const prev = useCallback(() => {
+  // force = cambiar de canción aunque ya lleve más de 3 s sonando (gesto de deslizar)
+  const prev = useCallback((force = false) => {
     const { queue, index } = state.current
     if (!queue.length) return
-    if (audio.currentTime > 3) {
+    if (!force && audio.currentTime > 3) {
       audio.currentTime = 0
       return
     }
@@ -205,7 +206,7 @@ export function PlayerProvider({ tracks, children }) {
     const handlers = {
       play: () => toggle(),
       pause: () => audio.pause(),
-      previoustrack: () => prev(),
+      previoustrack: () => prev(true),
       nexttrack: () => next(),
       seekto: (d) => seek(d.seekTime),
       seekbackward: () => seek(audio.currentTime - 10),
@@ -249,9 +250,15 @@ export function PlayerProvider({ tracks, children }) {
     visualizer,
     analyser,
     playQueue,
+    playShuffled: (ids) => {
+      if (!ids.length) return
+      setShuffle(true)
+      playQueue(ids, ids[Math.floor(Math.random() * ids.length)])
+    },
     toggle,
     next: () => next(false),
-    prev,
+    prev: () => prev(false),
+    prevTrack: () => prev(true),
     seek,
     forget,
     setVolume: (v) => {

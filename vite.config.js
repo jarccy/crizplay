@@ -9,8 +9,11 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      // también instalable y offline con `pnpm dev`
+      devOptions: { enabled: true, navigateFallback: 'index.html', type: 'module' },
       includeAssets: ['icon.svg', 'favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
+        id: '/',
         name: 'CrizPlay',
         short_name: 'CrizPlay',
         description: 'Reproductor de música offline',

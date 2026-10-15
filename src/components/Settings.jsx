@@ -25,7 +25,7 @@ function accentSwatch(id, base, dark) {
   return dark ? PALETTES[base][100] : PALETTES[base][900]
 }
 
-export function Settings({ onClose, trackCount, install: { canInstall, install, installed, isIOS } }) {
+export function Settings({ onClose, trackCount, installed, onInstall }) {
   const { theme, setTheme } = useTheme()
   const { visualizer, setVisualizer } = usePlayer()
   const [usage, setUsage] = useState(null)
@@ -194,19 +194,13 @@ export function Settings({ onClose, trackCount, install: { canInstall, install, 
                 <p className="flex items-center gap-2 text-muted">
                   <CheckIcon className="size-4 text-accent" /> CrizPlay está instalada en este dispositivo
                 </p>
-              ) : canInstall ? (
+              ) : (
                 <button
-                  onClick={install}
+                  onClick={onInstall}
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2.5 font-medium text-accent-fg transition-opacity hover:opacity-90"
                 >
                   <DownloadIcon className="size-4" /> Instalar aplicación
                 </button>
-              ) : (
-                <p className="text-muted">
-                  {isIOS
-                    ? 'En iPhone/iPad: toca Compartir → «Añadir a pantalla de inicio».'
-                    : 'Para instalarla usa el icono de instalar en la barra de direcciones del navegador.'}
-                </p>
               )}
               <div className="flex justify-between text-xs text-muted">
                 <span>

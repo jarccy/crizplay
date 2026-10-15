@@ -3,11 +3,13 @@ import { usePlayer } from '../hooks/usePlayer'
 import { coverUrl } from '../lib/covers'
 import { Cover } from './Cover'
 import { Controls, Progress, Volume } from './Controls'
-import { ChevronDownIcon, HeartIcon } from './Icons'
+import { useSwipe } from '../hooks/useSwipe'
+import { ChevronDownIcon, HeartIcon, ListPlusIcon } from './Icons'
 import { Visualizer } from './Visualizer'
 
-export function NowPlaying({ onClose, onFavorite }) {
-  const { current, queue, visualizer } = usePlayer()
+export function NowPlaying({ onClose, onFavorite, onAddToPlaylist }) {
+  const { current, queue, visualizer, next, prevTrack } = usePlayer()
+  const swipe = useSwipe({ onNext: next, onPrev: prevTrack, enabled: queue.length > 1 })
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose()
@@ -55,15 +57,29 @@ export function NowPlaying({ onClose, onFavorite }) {
             </p>
           )}
         </div>
-        <span className="size-10" />
+        <button
+          className="grid size-10 place-items-center rounded-full text-muted transition-colors hover:bg-fg/10 hover:text-fg"
+          onClick={() => onAddToPlaylist(current)}
+          aria-label="Añadir a playlist"
+          title="Añadir a playlist"
+        >
+          <ListPlusIcon className="size-[22px]" />
+        </button>
       </header>
 
       <main className="relative mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-6 pb-[max(2rem,env(safe-area-inset-bottom))]">
-        <Cover
-          track={current}
-          className="aspect-square w-full max-w-[min(100%,52vh)] self-center rounded-2xl shadow-2xl shadow-black/40"
-          iconClass="size-1/4"
-        />
+        <div
+          {...swipe.handlers}
+          style={swipe.style}
+          className="w-full max-w-[min(100%,52vh)] cursor-grab self-center select-none active:cursor-grabbing"
+          title={queue.length > 1 ? 'Desliza para cambiar de canción' : undefined}
+        >
+          <Cover
+            track={current}
+            className="pointer-events-none aspect-square w-full rounded-2xl shadow-2xl shadow-black/40"
+            iconClass="size-1/4"
+          />
+        </div>
 
         {visualizer && <Visualizer className="h-12" bars={40} />}
 

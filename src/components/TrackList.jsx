@@ -1,15 +1,22 @@
 import { usePlayer } from '../hooks/usePlayer'
 import { formatTime } from '../lib/format'
 import { Cover, Equalizer } from './Cover'
-import { HeartIcon, PlayIcon, TrashIcon } from './Icons'
+import { MoreButton } from './Dialogs'
+import { HeartIcon, ListPlusIcon, MinusCircleIcon, PlayIcon, TrashIcon } from './Icons'
 
-export function TrackList({ tracks, onFavorite, onRemove }) {
+const cols = 'md:grid-cols-[2.5rem_1fr_1fr_4.5rem_7rem]'
+const hoverBtn =
+  'hidden size-9 place-items-center rounded-full text-muted transition-colors hover:text-fg md:grid md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100'
+
+export function TrackList({ tracks, inPlaylist = false, onFavorite, onRemove, onAddToPlaylist, onMore }) {
   const { current, playing, playQueue, toggle } = usePlayer()
   const ids = tracks.map((t) => t.id)
 
   return (
     <ul className="px-2 pb-4 sm:px-4" role="list">
-      <li className="sticky top-0 z-10 hidden grid-cols-[2.5rem_1fr_1fr_4.5rem_4.5rem] items-center gap-3 border-b border-line bg-bg/90 px-3 py-2 text-[11px] font-medium uppercase tracking-wider text-muted backdrop-blur md:grid">
+      <li
+        className={`sticky top-0 z-10 hidden items-center gap-3 border-b border-line bg-bg/90 px-3 py-2 text-[11px] font-medium tracking-wider text-muted uppercase backdrop-blur md:grid ${cols}`}
+      >
         <span className="text-center">#</span>
         <span>Título</span>
         <span>Álbum</span>
@@ -21,12 +28,12 @@ export function TrackList({ tracks, onFavorite, onRemove }) {
         return (
           <li
             key={t.id}
-            className={`group grid cursor-default grid-cols-[1fr_auto] items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface md:grid-cols-[2.5rem_1fr_1fr_4.5rem_4.5rem] md:px-3 ${
+            className={`group grid cursor-default grid-cols-[1fr_auto] items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface md:px-3 ${cols} ${
               isCurrent ? 'bg-surface' : ''
             }`}
             onDoubleClick={() => playQueue(ids, t.id)}
           >
-            <span className="hidden place-items-center text-sm tabular-nums text-muted md:grid">
+            <span className="hidden place-items-center text-sm text-muted tabular-nums md:grid">
               {isCurrent ? (
                 <Equalizer paused={!playing} />
               ) : (
@@ -58,9 +65,12 @@ export function TrackList({ tracks, onFavorite, onRemove }) {
             </button>
 
             <span className="hidden truncate text-[13px] text-muted md:block">{t.album || '—'}</span>
-            <span className="hidden text-right text-[13px] tabular-nums text-muted md:block">{formatTime(t.duration)}</span>
+            <span className="hidden text-right text-[13px] text-muted tabular-nums md:block">{formatTime(t.duration)}</span>
 
             <span className="flex items-center justify-end gap-0.5">
+              <button className={hoverBtn} onClick={() => onAddToPlaylist(t)} aria-label="Añadir a playlist" title="Añadir a playlist">
+                <ListPlusIcon className="size-[18px]" />
+              </button>
               <button
                 className={`grid size-9 place-items-center rounded-full transition-colors hover:text-fg ${
                   t.favorite ? 'text-accent' : 'text-muted md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100'
@@ -72,12 +82,14 @@ export function TrackList({ tracks, onFavorite, onRemove }) {
                 <HeartIcon className="size-[18px]" fill={t.favorite} />
               </button>
               <button
-                className="grid size-9 place-items-center rounded-full text-muted transition-colors hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
+                className={`${hoverBtn} hover:!text-red-500`}
                 onClick={() => onRemove(t)}
-                aria-label={`Eliminar ${t.title}`}
+                aria-label={inPlaylist ? 'Quitar de la playlist' : `Eliminar ${t.title}`}
+                title={inPlaylist ? 'Quitar de la playlist' : 'Eliminar de la biblioteca'}
               >
-                <TrashIcon className="size-[17px]" />
+                {inPlaylist ? <MinusCircleIcon className="size-[17px]" /> : <TrashIcon className="size-[17px]" />}
               </button>
+              <MoreButton onClick={() => onMore(t)} label={`Más opciones de ${t.title}`} />
             </span>
           </li>
         )

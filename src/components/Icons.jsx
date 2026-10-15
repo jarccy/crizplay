@@ -150,6 +150,48 @@ export const MonitorIcon = icon(
     <path d="M8 21h8M12 17v4" />
   </>,
 )
+export const PlaylistIcon = icon(
+  <>
+    <path d="M21 15V6" />
+    <path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+    <path d="M12 12H3" />
+    <path d="M16 6H3" />
+    <path d="M12 18H3" />
+  </>,
+)
+export const ListPlusIcon = icon(
+  <>
+    <path d="M11 12H3" />
+    <path d="M16 6H3" />
+    <path d="M16 18H3" />
+    <path d="M18 9v6" />
+    <path d="M21 12h-6" />
+  </>,
+)
+export const PencilIcon = icon(
+  <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />,
+)
+export const ChevronLeftIcon = icon(<path d="m15 18-6-6 6-6" />)
+export const MinusCircleIcon = icon(
+  <>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M8 12h8" />
+  </>,
+)
+export const MoreIcon = icon(
+  <>
+    <circle cx="12" cy="5" r="1" fill="currentColor" />
+    <circle cx="12" cy="12" r="1" fill="currentColor" />
+    <circle cx="12" cy="19" r="1" fill="currentColor" />
+  </>,
+)
+export const ShareIcon = icon(
+  <>
+    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+    <path d="m16 6-4-4-4 4" />
+    <path d="M12 2v13" />
+  </>,
+)
 export const SortIcon = icon(
   <>
     <path d="m3 16 4 4 4-4" />
