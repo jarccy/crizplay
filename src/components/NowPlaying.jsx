@@ -3,6 +3,7 @@ import { usePlayer, vizSupported } from '../hooks/usePlayer'
 import { coverUrl } from '../lib/covers'
 import { Cover } from './Cover'
 import { Controls, Progress, Volume } from './Controls'
+import { useDragDismiss } from '../hooks/useDragDismiss'
 import { useSwipe } from '../hooks/useSwipe'
 import { ChevronDownIcon, HeartIcon, ListPlusIcon } from './Icons'
 import { Visualizer } from './Visualizer'
@@ -10,12 +11,14 @@ import { Visualizer } from './Visualizer'
 export function NowPlaying({ onClose, onFavorite, onAddToPlaylist }) {
   const { current, queue, visualizer, next, prevTrack } = usePlayer()
   const swipe = useSwipe({ onNext: next, onPrev: prevTrack, enabled: queue.length > 1 })
+  const sheet = useDragDismiss(onClose)
+  const { dismiss } = sheet
 
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose()
+    const onKey = (e) => e.key === 'Escape' && dismiss()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [dismiss])
 
   useEffect(() => {
     if (!current) onClose()
@@ -27,7 +30,9 @@ export function NowPlaying({ onClose, onFavorite, onAddToPlaylist }) {
 
   return (
     <div
-      className="animate-rise fixed inset-0 z-40 flex flex-col overflow-hidden bg-bg"
+      {...sheet.handlers}
+      style={sheet.style}
+      className="animate-rise fixed inset-0 z-40 flex flex-col overflow-hidden bg-bg select-none"
       role="dialog"
       aria-modal="true"
       aria-label="Reproduciendo ahora"
@@ -36,15 +41,18 @@ export function NowPlaying({ onClose, onFavorite, onAddToPlaylist }) {
         <img
           src={art}
           alt=""
-          className="pointer-events-none absolute inset-0 size-full scale-125 object-cover opacity-25 blur-3xl"
+          className="pointer-events-none absolute inset-0 size-full scale-125 transform-gpu object-cover opacity-25 blur-3xl"
         />
       )}
       <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-bg/40 via-bg/70 to-bg" />
 
-      <header className="relative flex items-center justify-between px-4 pt-[max(1rem,env(safe-area-inset-top))]">
+      {/* asa: indica que se puede deslizar hacia abajo */}
+      <div className="relative mx-auto mt-[max(0.5rem,env(safe-area-inset-top))] h-1 w-10 shrink-0 rounded-full bg-fg/20 md:hidden" />
+
+      <header className="relative flex items-center justify-between px-4 pt-2 md:pt-[max(1rem,env(safe-area-inset-top))]">
         <button
           className="grid size-10 place-items-center rounded-full text-muted transition-colors hover:bg-fg/10 hover:text-fg"
-          onClick={onClose}
+          onClick={dismiss}
           aria-label="Cerrar"
         >
           <ChevronDownIcon className="size-6" />

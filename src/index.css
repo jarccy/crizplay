@@ -54,6 +54,16 @@
   }
 }
 
+/* iOS hace zoom al enfocar un campo con texto de menos de 16px.
+   Fuera de @layer para que gane a utilidades como text-sm. */
+@media (pointer: coarse) {
+  input:not([type="range"], [type="checkbox"], [type="color"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 /* Barra de progreso / volumen */
 .slider {
   appearance: none;

@@ -197,9 +197,9 @@ function Shell({ library, toast }) {
         e.preventDefault()
         player.toggle()
       } else if (e.key === 'ArrowRight') {
-        e.shiftKey ? player.next() : player.seek(player.time + 5)
+        e.shiftKey ? player.next() : player.seekBy(5)
       } else if (e.key === 'ArrowLeft') {
-        e.shiftKey ? player.prevTrack() : player.seek(Math.max(0, player.time - 5))
+        e.shiftKey ? player.prevTrack() : player.seekBy(-5)
       } else if (e.key.toLowerCase() === 'm') player.toggleMute()
     }
     window.addEventListener('keydown', onKey)

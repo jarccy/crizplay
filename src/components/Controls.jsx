@@ -1,4 +1,5 @@
-import { usePlayer } from '../hooks/usePlayer'
+import { useState } from 'react'
+import { usePlayer, useTime } from '../hooks/usePlayer'
 import { formatTime } from '../lib/format'
 import {
   MuteIcon,
@@ -78,21 +79,41 @@ export function Controls({ large = false, compact = false }) {
 }
 
 export function Progress({ className = '' }) {
-  const { time, duration, seek, current } = usePlayer()
-  const pct = duration ? Math.min(100, (time / duration) * 100) : 0
+  const { seek, current } = usePlayer()
+  const { time, duration } = useTime()
+  // Mientras se arrastra solo se mueve la barra; el salto real ocurre al soltar
+  const [drag, setDrag] = useState(null)
+  const shown = drag ?? time
+  const pct = duration ? Math.min(100, (shown / duration) * 100) : 0
+
+  const commit = () => {
+    if (drag == null) return
+    if (Math.abs(drag - time) > 0.3) seek(drag)
+    setDrag(null)
+  }
+
   return (
     <div className={`flex items-center gap-3 text-[11px] tabular-nums text-muted ${className}`}>
-      <span className="w-9 text-right">{formatTime(time)}</span>
+      <span className="w-9 text-right">{formatTime(shown)}</span>
       <input
         type="range"
-        className="slider"
+        className={`slider ${drag != null ? 'always' : ''}`}
         min={0}
         max={duration || 0}
         step={0.1}
-        value={time}
+        value={shown}
         disabled={!current}
         style={{ '--p': `${pct}%` }}
-        onChange={(e) => seek(Number(e.target.value))}
+        onPointerDown={(e) => setDrag(Number(e.currentTarget.value))}
+        onChange={(e) => {
+          const v = Number(e.target.value)
+          if (drag != null) setDrag(v)
+          else seek(v) // teclado: salta directamente
+        }}
+        onPointerUp={commit}
+        onPointerCancel={commit}
+        onLostPointerCapture={commit}
+        onBlur={commit}
         aria-label="Posición"
       />
       <span className="w-9">{formatTime(duration)}</span>

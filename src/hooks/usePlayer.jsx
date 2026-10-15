@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { getFile } from '../lib/db'
 import { loadPref, savePref } from '../lib/format'
 import { coverUrl } from '../lib/covers'
@@ -19,8 +19,6 @@ export function PlayerProvider({ tracks, children }) {
   const [queue, setQueue] = useState([])
   const [index, setIndex] = useState(-1)
   const [playing, setPlaying] = useState(false)
-  const [time, setTime] = useState(0)
-  const [duration, setDuration] = useState(0)
   const [volume, setVolume] = useState(() => loadPref('volume', 0.8))
   const [muted, setMuted] = useState(false)
   const [shuffle, setShuffle] = useState(() => loadPref('shuffle', false))
@@ -192,8 +190,6 @@ export function PlayerProvider({ tracks, children }) {
         audio.pause()
         audio.removeAttribute('src')
         audio.load()
-        setTime(0)
-        setDuration(0)
         setQueue(nq)
         setIndex(-1)
       } else {
@@ -229,11 +225,7 @@ export function PlayerProvider({ tracks, children }) {
         setPlaying(false)
         syncPosition()
       },
-      timeupdate: () => setTime(audio.currentTime),
-      durationchange: () => {
-        setDuration(audio.duration || 0)
-        syncPosition()
-      },
+      durationchange: syncPosition,
       seeked: syncPosition,
       ended: () => next(true),
     }
@@ -346,8 +338,6 @@ export function PlayerProvider({ tracks, children }) {
     current,
     queue,
     playing,
-    time,
-    duration,
     volume,
     muted,
     shuffle,
@@ -365,6 +355,7 @@ export function PlayerProvider({ tracks, children }) {
     prev: () => prev(false),
     prevTrack: () => prev(true),
     seek,
+    seekBy: (delta) => seek(Math.max(0, Math.min(audio.currentTime + delta, audio.duration || 0))),
     forget,
     setVolume: (v) => {
       setVolume(v)
@@ -376,7 +367,44 @@ export function PlayerProvider({ tracks, children }) {
     setVisualizer,
   }
 
-  return <PlayerCtx.Provider value={value}>{children}</PlayerCtx.Provider>
+  return (
+    <PlayerCtx.Provider value={value}>
+      <TimeProvider audio={audio}>{children}</TimeProvider>
+    </PlayerCtx.Provider>
+  )
 }
 
 export const usePlayer = () => useContext(PlayerCtx)
+
+// El tiempo cambia varias veces por segundo: va en su propio contexto para que
+// solo se vuelvan a dibujar las barras de progreso y no toda la aplicación.
+const TimeCtx = createContext({ time: 0, duration: 0 })
+
+function TimeProvider({ audio, children }) {
+  const [time, setTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+
+  useEffect(() => {
+    const onTime = () => setTime(audio.currentTime)
+    const onDuration = () => setDuration(audio.duration || 0)
+    const onEmptied = () => {
+      setTime(0)
+      setDuration(0)
+    }
+    audio.addEventListener('timeupdate', onTime)
+    audio.addEventListener('seeking', onTime)
+    audio.addEventListener('durationchange', onDuration)
+    audio.addEventListener('emptied', onEmptied)
+    return () => {
+      audio.removeEventListener('timeupdate', onTime)
+      audio.removeEventListener('seeking', onTime)
+      audio.removeEventListener('durationchange', onDuration)
+      audio.removeEventListener('emptied', onEmptied)
+    }
+  }, [audio])
+
+  const value = useMemo(() => ({ time, duration }), [time, duration])
+  return <TimeCtx.Provider value={value}>{children}</TimeCtx.Provider>
+}
+
+export const useTime = () => useContext(TimeCtx)
