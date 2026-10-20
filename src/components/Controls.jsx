@@ -21,7 +21,7 @@ const Dot = () => <span className="absolute bottom-0 left-1/2 size-1 -translate-
 export function Controls({ large = false, compact = false }) {
   const p = usePlayer()
   const disabled = !p.current
-  const repeatLabel = { off: 'Repetir: no', all: 'Repetir: todo', one: 'Repetir: una' }[p.repeat]
+  const repeatLabel = { off: 'Repetir: desactivado', one: 'Repetir esta canción', all: 'Repetir toda la lista' }[p.repeat]
 
   return (
     <div className={`flex items-center justify-center ${large ? 'gap-5 sm:gap-7' : 'gap-3'}`}>

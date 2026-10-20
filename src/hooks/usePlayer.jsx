@@ -357,7 +357,12 @@ export function PlayerProvider({ tracks, children }) {
   }, [audio, volume, muted])
 
   useEffect(() => savePref('shuffle', shuffle), [shuffle])
-  useEffect(() => savePref('repeat', repeat), [repeat])
+  // Repetir canción: bucle nativo del navegador. Nunca llega a "terminar",
+  // así que se repite sin cortes y también en segundo plano.
+  useEffect(() => {
+    audio.loop = repeat === 'one'
+    savePref('repeat', repeat)
+  }, [audio, repeat])
   useEffect(() => savePref('visualizer', visualizer), [visualizer])
 
   // Restaura la última canción (en pausa) al abrir la app
@@ -438,7 +443,14 @@ export function PlayerProvider({ tracks, children }) {
     },
     toggleMute: () => setMuted((m) => !m),
     toggleShuffle: () => setShuffle((s) => !s),
-    cycleRepeat: () => setRepeat((r) => (r === 'off' ? 'all' : r === 'all' ? 'one' : 'off')),
+    // sin repetir → repetir canción → repetir lista
+    cycleRepeat: () => {
+      const r = { off: 'one', one: 'all', all: 'off' }[prefs.current.repeat] || 'off'
+      prefs.current.repeat = r
+      audio.loop = r === 'one'
+      setRepeat(r)
+    },
+    getTime: () => audio.currentTime,
     setVisualizer,
   }
 

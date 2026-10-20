@@ -115,6 +115,16 @@ export function useLibrary(notify) {
     await updateTrack(next)
   }, [])
 
+  // lyrics: { synced, plain, instrumental, offset, source } o null para quitarla
+  const setLyrics = useCallback(async (id, lyrics) => {
+    const t = tracksRef.current.find((x) => x.id === id)
+    if (!t) return
+    const next = { ...t, lyrics }
+    tracksRef.current = tracksRef.current.map((x) => (x.id === id ? next : x))
+    setTracks(tracksRef.current)
+    await updateTrack(next)
+  }, [])
+
   const createPlaylist = useCallback(
     (name, trackIds = []) => savePlaylist({ id: uid(), name, trackIds, createdAt: Date.now() }),
     [savePlaylist],
@@ -161,6 +171,7 @@ export function useLibrary(notify) {
     importFiles,
     removeTrack,
     toggleFavorite,
+    setLyrics,
     createPlaylist,
     renamePlaylist,
     setPlaylistTracks,

@@ -1,21 +1,31 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { usePlayer, vizSupported } from '../hooks/usePlayer'
 import { coverUrl } from '../lib/covers'
+import { loadPref, savePref } from '../lib/format'
 import { Cover } from './Cover'
 import { Controls, Progress, Volume } from './Controls'
 import { useDragDismiss } from '../hooks/useDragDismiss'
 import { useSwipe } from '../hooks/useSwipe'
-import { ChevronDownIcon, HeartIcon, ListPlusIcon } from './Icons'
+import { ChevronDownIcon, HeartIcon, ListPlusIcon, LyricsIcon } from './Icons'
+import { LyricsPanel } from './Lyrics'
 import { Visualizer } from './Visualizer'
 
-export function NowPlaying({ onClose, onFavorite, onAddToPlaylist }) {
+export function NowPlaying({ onClose, onFavorite, onAddToPlaylist, onSaveLyrics, onLyricsSearch, onLyricsPaste }) {
   const { current, queue, visualizer, next, prevTrack } = usePlayer()
   const swipe = useSwipe({ onNext: next, onPrev: prevTrack, enabled: queue.length > 1 })
   const sheet = useDragDismiss(onClose)
   const { dismiss } = sheet
+  const [showLyrics, setShowLyrics] = useState(() => loadPref('lyricsOpen', false))
+
+  useEffect(() => savePref('lyricsOpen', showLyrics), [showLyrics])
 
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && dismiss()
+    // Esc cierra solo el diálogo de arriba (búsqueda de letra, playlists…) si hay uno abierto
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      const others = document.querySelectorAll('[role="dialog"][aria-modal="true"]').length > 1
+      if (!others) dismiss()
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [dismiss])
@@ -75,23 +85,39 @@ export function NowPlaying({ onClose, onFavorite, onAddToPlaylist }) {
         </button>
       </header>
 
-      <main className="relative mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-6 pb-[max(2rem,env(safe-area-inset-bottom))]">
-        <div
-          {...swipe.handlers}
-          style={swipe.style}
-          className="w-full max-w-[min(100%,52vh)] cursor-grab self-center select-none active:cursor-grabbing"
-          title={queue.length > 1 ? 'Desliza para cambiar de canción' : undefined}
-        >
-          <Cover
+      <main
+        className={`relative mx-auto flex min-h-0 w-full flex-1 flex-col gap-6 px-6 pb-[max(2rem,env(safe-area-inset-bottom))] ${
+          showLyrics ? 'max-w-xl justify-end pt-2' : 'max-w-md justify-center'
+        }`}
+      >
+        {showLyrics ? (
+          <LyricsPanel
             track={current}
-            className="pointer-events-none aspect-square w-full rounded-2xl shadow-2xl shadow-black/40"
-            iconClass="size-1/4"
+            onSave={onSaveLyrics}
+            onSearch={() => onLyricsSearch(current)}
+            onPaste={() => onLyricsPaste(current)}
           />
-        </div>
+        ) : (
+          <>
+            <div
+              {...swipe.handlers}
+              style={swipe.style}
+              className="w-full max-w-[min(100%,52vh)] cursor-grab self-center select-none active:cursor-grabbing"
+              title={queue.length > 1 ? 'Desliza para cambiar de canción' : undefined}
+            >
+              <Cover
+                track={current}
+                className="pointer-events-none aspect-square w-full rounded-2xl shadow-2xl shadow-black/40"
+                iconClass="size-1/4"
+              />
+            </div>
 
-        {visualizer && vizSupported && <Visualizer className="h-12" bars={40} />}
+            {visualizer && vizSupported && <Visualizer className="h-12" bars={40} />}
+          </>
+        )}
 
         <div className="flex items-center gap-3">
+          {showLyrics && <Cover track={current} className="size-12 rounded-md shadow-md" />}
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-xl font-semibold tracking-tight">{current.title}</h2>
             <p className="truncate text-muted">
@@ -99,6 +125,17 @@ export function NowPlaying({ onClose, onFavorite, onAddToPlaylist }) {
               {current.album && ` · ${current.album}`}
             </p>
           </div>
+          <button
+            className={`grid size-10 shrink-0 place-items-center rounded-full transition-colors hover:bg-fg/10 ${
+              showLyrics ? 'bg-accent !text-accent-fg hover:bg-accent' : 'text-muted hover:text-fg'
+            }`}
+            onClick={() => setShowLyrics((v) => !v)}
+            aria-pressed={showLyrics}
+            aria-label={showLyrics ? 'Ver carátula' : 'Ver letra'}
+            title={showLyrics ? 'Ver carátula' : 'Ver letra'}
+          >
+            <LyricsIcon className="size-5" />
+          </button>
           <button
             className={`grid size-10 shrink-0 place-items-center rounded-full transition-colors hover:bg-fg/10 ${
               current.favorite ? 'text-accent' : 'text-muted'

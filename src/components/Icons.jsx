@@ -192,6 +192,19 @@ export const ShareIcon = icon(
     <path d="M12 2v13" />
   </>,
 )
+export const LyricsIcon = icon(
+  <>
+    <path d="m11 7.601-5.994 8.19a1 1 0 0 0 .1 1.298l.817.818a1 1 0 0 0 1.314.087L15.09 12" />
+    <path d="M16.5 21.174C15.5 20.5 14.372 20 13 20c-2.058 0-3.928 2.356-6 2-2.072-.356-2.775-3.369-1.5-4.5" />
+    <circle cx="16" cy="7" r="5" />
+  </>,
+)
+export const ClipboardIcon = icon(
+  <>
+    <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+  </>,
+)
 export const SortIcon = icon(
   <>
     <path d="m3 16 4 4 4-4" />

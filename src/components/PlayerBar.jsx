@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { usePlayer, useTime } from '../hooks/usePlayer'
 import { useSwipe } from '../hooks/useSwipe'
 import { Cover } from './Cover'
@@ -15,12 +16,41 @@ function MiniProgress() {
   )
 }
 
+// controles que tienen su propia acción y no deben abrir el reproductor
+const INTERACTIVE = 'button:not([data-expand]), input, select, a, label'
+
 export function PlayerBar({ onExpand, onFavorite }) {
   const { current, queue, next, prevTrack } = usePlayer()
   const swipe = useSwipe({ onNext: next, onPrev: prevTrack, enabled: !!current && queue.length > 1, tilt: false, threshold: 50 })
+  const startY = useRef(null)
+
+  // Tocar cualquier zona libre de la barra abre el reproductor
+  const onBarClick = (e) => {
+    if (current && !e.target.closest(INTERACTIVE)) onExpand()
+  }
+
+  // Deslizar la barra hacia arriba también lo abre
+  const onBarPointerDown = (e) => {
+    startY.current = current && !e.target.closest('input') ? { x: e.clientX, y: e.clientY } : null
+  }
+  const onBarPointerUp = (e) => {
+    const s = startY.current
+    startY.current = null
+    if (!s) return
+    const dy = e.clientY - s.y
+    if (dy < -40 && Math.abs(e.clientX - s.x) < Math.abs(dy)) onExpand()
+  }
 
   return (
-    <footer className="relative border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+    <footer
+      onClick={onBarClick}
+      onPointerDown={onBarPointerDown}
+      onPointerUp={onBarPointerUp}
+      onPointerCancel={() => (startY.current = null)}
+      className={`relative border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur ${
+        current ? 'cursor-pointer' : ''
+      }`}
+    >
       <MiniProgress />
 
       <div className="grid h-[72px] grid-cols-[1fr_auto] items-center gap-4 px-3 md:h-20 md:grid-cols-[1fr_minmax(0,40rem)_1fr] md:px-4">
@@ -28,8 +58,8 @@ export function PlayerBar({ onExpand, onFavorite }) {
           <button
             {...swipe.handlers}
             style={swipe.style}
+            data-expand
             className="flex min-w-0 items-center gap-3 text-left select-none disabled:cursor-default"
-            onClick={onExpand}
             disabled={!current}
             aria-label="Abrir reproductor"
           >

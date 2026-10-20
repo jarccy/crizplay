@@ -17,6 +17,7 @@ import {
   TrashIcon,
   XIcon,
 } from './components/Icons'
+import { LyricsPasteSheet, LyricsSearchSheet } from './components/Lyrics'
 import { NowPlaying } from './components/NowPlaying'
 import { PlayerBar } from './components/PlayerBar'
 import { PlaylistCover, PlaylistGrid } from './components/Playlists'
@@ -533,7 +534,16 @@ function Shell({ library, toast }) {
 
       <PlayerBar onExpand={() => setExpanded(true)} onFavorite={toggleFavorite} />
 
-      {expanded && <NowPlaying onClose={closeExpanded} onFavorite={toggleFavorite} onAddToPlaylist={addToPlaylist} />}
+      {expanded && (
+        <NowPlaying
+          onClose={closeExpanded}
+          onFavorite={toggleFavorite}
+          onAddToPlaylist={addToPlaylist}
+          onSaveLyrics={library.setLyrics}
+          onLyricsSearch={(track) => setDialog({ type: 'lyricsSearch', trackId: track.id })}
+          onLyricsPaste={(track) => setDialog({ type: 'lyricsPaste', trackId: track.id })}
+        />
+      )}
       {settingsOpen && (
         <Settings onClose={closeSettings} trackCount={tracks.length} installed={installer.installed} onInstall={requestInstall} />
       )}
@@ -567,6 +577,20 @@ function Shell({ library, toast }) {
         />
       )}
       {dialog?.type === 'installHelp' && <InstallHelpSheet onClose={closeDialog} />}
+      {dialog?.type === 'lyricsSearch' && byId.get(dialog.trackId) && (
+        <LyricsSearchSheet
+          track={byId.get(dialog.trackId)}
+          onPick={(lyrics) => library.setLyrics(dialog.trackId, lyrics)}
+          onClose={closeDialog}
+        />
+      )}
+      {dialog?.type === 'lyricsPaste' && byId.get(dialog.trackId) && (
+        <LyricsPasteSheet
+          track={byId.get(dialog.trackId)}
+          onSave={(lyrics) => library.setLyrics(dialog.trackId, lyrics)}
+          onClose={closeDialog}
+        />
+      )}
 
       {dragging && (
         <div className="pointer-events-none fixed inset-0 z-50 grid place-items-center bg-bg/80 p-6 backdrop-blur-sm">
