@@ -277,7 +277,7 @@ function Shell({ library, toast }) {
     )
 
   return (
-    <div className="flex h-dvh flex-col">
+    <div className="fixed inset-0 flex flex-col">
       <input
         ref={fileInput}
         type="file"
