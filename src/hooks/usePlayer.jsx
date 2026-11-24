@@ -387,8 +387,10 @@ export function PlayerProvider({ tracks, children }) {
       previoustrack: () => prev(true),
       nexttrack: () => next(),
       seekto: (d) => seek(d.seekTime),
-      seekbackward: () => seek(audio.currentTime - 10),
-      seekforward: () => seek(audio.currentTime + 10),
+      // iOS muestra ±10 s EN LUGAR de anterior/siguiente si existen estos
+      // handlers: los anulamos para que salgan los botones de canción.
+      seekbackward: null,
+      seekforward: null,
     }
     for (const [a, fn] of Object.entries(handlers)) {
       try {
