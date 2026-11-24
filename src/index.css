@@ -33,10 +33,17 @@
   #root {
     height: 100%;
   }
+  /* La página nunca se desplaza: solo los paneles internos.
+     En iOS, si el documento también puede moverse, Safari le da el gesto
+     a él (bloqueado por overscroll-behavior) y la lista no hace scroll. */
+  html,
+  body {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
   body {
     @apply bg-bg text-fg font-sans antialiased;
     -webkit-tap-highlight-color: transparent;
-    overscroll-behavior: none;
   }
   ::selection {
     background: color-mix(in oklch, var(--accent) 35%, transparent);
@@ -138,4 +145,11 @@
 
 @media (prefers-reduced-motion: reduce) {
   .eq span, .animate-rise, .animate-fade-up { animation: none; }
+}
+
+/* Panel con scroll táctil fluido (iOS) */
+.scroll-area {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
 }

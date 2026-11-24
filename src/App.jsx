@@ -290,7 +290,7 @@ function Shell({ library, toast }) {
         }}
       />
 
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Barra lateral (escritorio) */}
         <aside className="hidden w-64 shrink-0 flex-col gap-6 border-r border-line bg-surface p-4 md:flex">
           <div className="px-1 pt-1">
@@ -353,7 +353,7 @@ function Shell({ library, toast }) {
           </div>
         </aside>
 
-        <main className="flex min-w-0 flex-1 flex-col">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col">
           {/* Cabecera móvil */}
           <div className="flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden">
             <Logo />
@@ -369,7 +369,7 @@ function Shell({ library, toast }) {
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="scroll-area min-h-0 flex-1 overflow-y-auto">
             <header className="space-y-4 px-4 pt-4 pb-3 sm:px-6 md:pt-8">
               {/* Pestañas móviles */}
               <div className="grid grid-cols-3 gap-1 rounded-xl bg-surface p-1 md:hidden">
