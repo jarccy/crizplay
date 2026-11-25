@@ -18,6 +18,17 @@ export const vizSupported =
 // así la página nunca queda en silencio y el sistema no la congela entre canciones.
 const EARLY_SWITCH = 0.35
 
+// Orden aleatorio sin repeticiones: la canción actual va primero y el resto barajado
+// (Fisher-Yates). Así "siguiente" y "anterior" recorren siempre el mismo orden.
+const shuffled = (ids, firstId) => {
+  const rest = ids.filter((id) => id !== firstId)
+  for (let i = rest.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[rest[i], rest[j]] = [rest[j], rest[i]]
+  }
+  return firstId != null && ids.includes(firstId) ? [firstId, ...rest] : rest
+}
+
 const setPlaybackState = (s) => {
   if (navigator.mediaSession) navigator.mediaSession.playbackState = s
 }
@@ -45,13 +56,14 @@ export function PlayerProvider({ tracks, children }) {
   // audio (que siguen llegando en segundo plano) no dependen de que React vuelva a dibujar.
   const queueRef = useRef([])
   const indexRef = useRef(-1)
+  const baseRef = useRef([]) // orden original de la lista (para desactivar aleatorio)
   const prefs = useRef({})
   prefs.current = { shuffle, repeat, visualizer }
 
   const urlRef = useRef(null)
   const loadSeq = useRef(0)
   const viz = useRef(null)
-  const upcoming = useRef(null) // { queue, from, index, id, shuffle, url }
+  const upcoming = useRef(null) // { queue, from, index, id, url }
   const pendingPlay = useRef(false)
   const autoAdvancing = useRef(false)
   const errorStreak = useRef(0)
@@ -106,16 +118,8 @@ export function PlayerProvider({ tracks, children }) {
   const nextIndex = useCallback((auto) => {
     const q = queueRef.current
     const i = indexRef.current
-    const { shuffle, repeat } = prefs.current
+    const { repeat } = prefs.current
     if (!q.length) return null
-    const up = upcoming.current
-    if (up && up.queue === q && up.from === i && up.shuffle === shuffle) return up.index
-    if (shuffle && q.length > 1) {
-      let ni
-      do ni = Math.floor(Math.random() * q.length)
-      while (ni === i)
-      return ni
-    }
     if (i + 1 < q.length) return i + 1
     return auto && repeat === 'off' ? null : 0
   }, [])
@@ -130,16 +134,12 @@ export function PlayerProvider({ tracks, children }) {
   const prepare = useCallback(() => {
     const q = queueRef.current
     const i = indexRef.current
-    const { shuffle } = prefs.current
     if (i < 0 || q.length < 2) return dropUpcoming()
     const up = upcoming.current
-    if (up && up.queue === q && up.from === i && up.shuffle === shuffle) return
+    if (up && up.queue === q && up.from === i) return
     dropUpcoming()
-    let ni = (i + 1) % q.length
-    if (shuffle)
-      do ni = Math.floor(Math.random() * q.length)
-      while (ni === i)
-    const plan = { queue: q, from: i, index: ni, id: q[ni], shuffle, url: null }
+    const ni = (i + 1) % q.length
+    const plan = { queue: q, from: i, index: ni, id: q[ni], url: null }
     upcoming.current = plan
     getFile(plan.id).then((blob) => {
       if (upcoming.current === plan && blob) plan.url = URL.createObjectURL(blob)
@@ -175,9 +175,11 @@ export function PlayerProvider({ tracks, children }) {
 
   const playQueue = useCallback(
     (ids, startId) => {
-      const i = Math.max(0, ids.indexOf(startId))
-      setPosition(ids, i)
-      load(ids[i])
+      baseRef.current = ids
+      const id = ids.includes(startId) ? startId : ids[0]
+      if (prefs.current.shuffle) setPosition(shuffled(ids, id), 0)
+      else setPosition(ids, ids.indexOf(id))
+      load(id)
     },
     [load, setPosition],
   )
@@ -250,6 +252,7 @@ export function PlayerProvider({ tracks, children }) {
       const at = q.indexOf(id)
       if (at === -1) return
       const nq = q.filter((x) => x !== id)
+      baseRef.current = baseRef.current.filter((x) => x !== id)
       dropUpcoming()
       if (at === i) {
         audio.pause()
@@ -340,11 +343,6 @@ export function PlayerProvider({ tracks, children }) {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [tryPlay])
 
-  // Al activar/desactivar aleatorio se vuelve a elegir la siguiente
-  useEffect(() => {
-    prepare()
-  }, [shuffle, prepare])
-
   // Activar el visualizador mientras suena
   useEffect(() => {
     if (visualizer && !audio.paused) connectViz()
@@ -373,7 +371,9 @@ export function PlayerProvider({ tracks, children }) {
     const ids = tracks.map((t) => t.id)
     const last = loadPref('last', null)
     const i = ids.indexOf(last)
-    setPosition(ids, i)
+    baseRef.current = ids
+    if (i >= 0 && prefs.current.shuffle) setPosition(shuffled(ids, last), 0)
+    else setPosition(ids, i)
     if (i >= 0) load(last, false)
   }, [tracks, load, setPosition])
 
@@ -444,7 +444,20 @@ export function PlayerProvider({ tracks, children }) {
       if (v > 0) setMuted(false)
     },
     toggleMute: () => setMuted((m) => !m),
-    toggleShuffle: () => setShuffle((s) => !s),
+    // Activar: baraja el resto de la lista. Desactivar: vuelve al orden original
+    // y sigue desde la canción que está sonando.
+    toggleShuffle: () => {
+      const on = !prefs.current.shuffle
+      prefs.current.shuffle = on
+      setShuffle(on)
+      const base = baseRef.current
+      const cur = queueRef.current[indexRef.current]
+      if (cur == null || !base.length) return
+      dropUpcoming()
+      if (on) setPosition(shuffled(base, cur), 0)
+      else setPosition(base, base.indexOf(cur))
+      prepare()
+    },
     // sin repetir → repetir canción → repetir lista
     cycleRepeat: () => {
       const r = { off: 'one', one: 'all', all: 'off' }[prefs.current.repeat] || 'off'

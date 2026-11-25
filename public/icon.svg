@@ -1,6 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#0a0a0a"/>
-  <circle cx="256" cy="256" r="150" fill="none" stroke="#e5e5e5" stroke-width="28"/>
-  <circle cx="256" cy="256" r="96" fill="none" stroke="#525252" stroke-width="10"/>
-  <path d="M226 196 L326 256 L226 316 Z" fill="#fafafa" stroke="#fafafa" stroke-width="16" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <style>
+    svg { color: #fff; }
+    /* en pestañas claras se vuelve oscuro para que no desaparezca */
+    @media (prefers-color-scheme: light) { svg { color: #0a0a0a; } }
+  </style>
+  <!-- "C" abierta con un play: CrizPlay -->
+  <path d="M386.2 146.7A170 170 0 1 0 386.2 365.3" stroke="currentColor" stroke-width="56" stroke-linecap="round"/>
+  <path d="M226 194L318 256L226 318Z" fill="currentColor" stroke="currentColor" stroke-width="24" stroke-linejoin="round"/>
 </svg>

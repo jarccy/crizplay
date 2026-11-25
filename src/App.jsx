@@ -39,9 +39,11 @@ const songs = (n) => `${n} ${n === 1 ? 'canción' : 'canciones'}`
 function Logo() {
   return (
     <span className="flex items-center gap-2.5">
-      <span className="grid size-8 place-items-center rounded-lg bg-accent text-accent-fg">
-        <MusicIcon className="size-4" />
-      </span>
+      {/* mismo símbolo que public/icon.svg; toma el color del texto según el tema */}
+      <svg viewBox="0 0 512 512" fill="none" className="size-7 text-fg" aria-hidden="true">
+        <path d="M386.2 146.7A170 170 0 1 0 386.2 365.3" stroke="currentColor" strokeWidth="56" strokeLinecap="round" />
+        <path d="M226 194L318 256L226 318Z" fill="currentColor" stroke="currentColor" strokeWidth="24" strokeLinejoin="round" />
+      </svg>
       <span className="text-[17px] font-semibold tracking-tight">CrizPlay</span>
     </span>
   )
